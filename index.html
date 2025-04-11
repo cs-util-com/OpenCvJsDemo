@@ -1,147 +1,109 @@
-<!-- User Stories & Requirements for the code below:
-
-- This is a template for a single-page HTML web app.
-- A monospace font should be used.
-- No backend; all data is stored locally.
-
-Main user stories:
-- ...
-
-Keep this comment block in the code.
-Simplify the code if possible (without removing the functionality described above). 
-You MUST keep all comments in the code below, even if you think they are redundant.
-Always respond with the full new html file (including these comments here), 
-additional explanations what you change are nice to have but not necessary. 
--->
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Decoupled Modules Example with Person Class</title>
-  <!-- Favicon: A white box --> <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23fff'/%3E%3C/svg%3E" type="image/svg+xml">
-  <!-- Added Tailwind CSS via CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @view-transition {
-      navigation: auto;
-    }
-    
-    nav a[aria-current="page"]:after {
-      border-color: white;
-      view-transition-name: posts-nav;
-    }
-    
-    /* Old stuff going out */
-    ::view-transition-old(posts-nav) {
-      animation: fade 0.2s linear forwards;
-      height: 100%;
-    }
-    
-    /* New stuff coming in */
-    ::view-transition-new(posts-nav) {
-      animation: fade 0.3s linear reverse;
-      height: 100%;
-    }
-    
-    @keyframes fade {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-  </style>
-  <script>
-    // Only use if browser supports View Transitions
-    if (document.startViewTransition) {
-      window.addEventListener('click', (e) => {
-        // Only handle internal links
-        if (e.target.tagName === 'A' && e.target.origin === window.location.origin) {
-          e.preventDefault();
-          document.startViewTransition(() => {
-            window.location.href = e.target.href;
-          });
-        }
-      });
-    }
-  </script>
+    <meta charset="UTF-8">
+    <title>Minimal OpenCV.js WASM (CDN)</title>
+    <style>
+        body { font-family: sans-serif; padding: 1em; }
+        #status { margin-bottom: 1em; font-weight: bold; color: #555; }
+        #canvasOutput { border: 1px solid black; }
+        .ready { color: green; }
+        .error { color: red; }
+    </style>
 </head>
-<body class="font-mono p-8 bg-gray-50">
-  <div class="max-w-4xl mx-auto">
-    <header class="mb-8">
-      <h1 class="text-3xl font-bold text-blue-600 mb-4">Template Web App</h1>
-      <nav class="bg-blue-600 text-white p-4 rounded-lg mb-4">
-        <a href="index.html" class="mr-6 hover:underline font-bold relative" aria-current="page">
-          Home
-          <span class="absolute bottom-0 left-0 w-full h-0.5 bg-white"></span>
-        </a>
-        <a href="features.html" class="mr-6 hover:underline">Features</a>
-        <a href="about.html" class="hover:underline">About</a>
-      </nav>
-      <div class="bg-blue-100 border-l-4 border-blue-500 p-4 mb-6">
-        <p class="text-sm text-blue-700">This is a Tailwind CSS demonstration with modular JavaScript.</p>
-      </div>
-    </header>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-      <!-- Card 1 -->
-      <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">Greeting Card</h2>
-        <p class="text-gray-600 mb-4">Click the button below to greet the person.</p>
-        <button id="greetBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline transition duration-300">
-          Greet
-        </button>
-      </div>
-      
-      <!-- Card 2 -->
-      <div class="bg-white p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-bold mb-4 text-gray-800">Tailwind Features</h2>
-        <ul class="list-disc pl-5 space-y-2 text-gray-600">
-          <li>Responsive design with <span class="font-bold text-blue-500">breakpoints</span></li>
-          <li>Utility-first CSS framework</li>
-          <li>Customizable with configuration</li>
-        </ul>
-        <div class="mt-4">
-          <div class="flex gap-2">
-            <span class="bg-red-200 text-red-800 text-xs p-1 rounded">Tag</span>
-            <span class="bg-green-200 text-green-800 text-xs p-1 rounded">Utility</span>
-            <span class="bg-yellow-200 text-yellow-800 text-xs p-1 rounded">Responsive</span>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="bg-white p-6 rounded-lg shadow">
-      <h2 class="text-xl font-bold mb-4 text-gray-800">Interactive Components</h2>
-      <div class="mb-4">
-        <label class="block text-gray-700 text-sm font-bold mb-2" for="username">
-          Username
-        </label>
-        <input class="w-full p-2 border rounded text-gray-700 focus:outline-none focus:shadow-outline" id="username" type="text" placeholder="Username">
-      </div>
-      <div class="flex justify-between">
-        <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none transition">
-          Save
-        </button>
-        <button class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none transition">
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Load the main module -->
-  <script type="module">
 
-    import { tellBirthday } from './utils.js';
-    import { Person } from './person.js';
+<body>
+    <h1>Minimal OpenCV.js WASM Example (Using Hosted Files)</h1>
+    <div id="status">Initializing OpenCV.js from docs.opencv.org... Please Wait.</div>
+    <p>A blue rectangle should appear below if OpenCV.js loaded and executed correctly from the remote URL.</p>
+    <canvas id="canvasOutput" width="320" height="240"></canvas>
 
-    // Create a new Person instance with values defined in the HTML.
-    const person = new Person('Alice', 40);
-    document.getElementById('greetBtn').addEventListener('click', () => {
-      alert(tellBirthday(person));
-    });
+    <script>
+        // --- 1. OpenCV WASM Module Configuration ---
+        // Define the Module object *before* loading opencv.js
+        var Module = {
+            // **IMPORTANT**: Use the ABSOLUTE URL to the hosted WASM file
+            wasmBinaryFile: 'https://docs.opencv.org/4.9.0/opencv_js.wasm',
+            // Use onRuntimeInitialized - standard Emscripten callback
+            onRuntimeInitialized: function() { onOpenCvReady(); }
+        };
 
-  </script>
+        // --- 2. OpenCV Ready Callback ---
+        // Function to run when the WASM module is loaded and ready
+        async function onOpenCvReady() {
+            const statusElement = document.getElementById('status');
+            console.log('OpenCV runtime initialized from remote source.');
+
+            // Ensure cv is ready, potentially handling Promises
+            try {
+                 if (typeof cv === 'undefined') {
+                    statusElement.textContent = 'Error: cv object is undefined after loading from remote source.';
+                    statusElement.className = 'error';
+                    console.error('Error: cv object is undefined.');
+                    return;
+                 }
+                 cv = (cv instanceof Promise) ? await cv : cv;
+                 console.log('cv object is ready:', cv);
+
+                 statusElement.textContent = 'OpenCV.js is ready (loaded from CDN).';
+                 statusElement.classList.add('ready');
+
+            } catch (error) {
+                statusElement.textContent = 'Error resolving cv object. Check console.';
+                statusElement.className = 'error';
+                console.error("Error resolving cv object: ", error);
+                return; // Stop execution if cv isn't ready
+            }
+
+            // --- 3. Simple OpenCV Operation ---
+            try {
+                // Use getBuildInformation() instead of getVersionString()
+                console.log("OpenCV Build Information:", cv.getBuildInformation());
+
+                let canvas = document.getElementById('canvasOutput');
+
+                // Create an OpenCV Mat - USE CV_8UC4 as a CONSTANT
+                let mat = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4); // REMOVED ()
+
+                // Define points and color (Blue this time)
+                let point1 = new cv.Point(75, 75);
+                let point2 = new cv.Point(245, 165);
+                let color = new cv.Scalar(0, 0, 255, 255); // Blue (RGBA)
+                let thickness = -1; // Fill the rectangle
+
+                // Draw rectangle on the Mat
+                cv.rectangle(mat, point1, point2, color, thickness);
+
+                // Display the Mat on the canvas
+                cv.imshow('canvasOutput', mat);
+
+                // --- 4. Clean up OpenCV objects ---
+                mat.delete(); // Don't forget cleanup!
+
+                console.log('Successfully drew rectangle using remotely loaded OpenCV.');
+                statusElement.textContent = 'OpenCV.js ready (CDN). Rectangle drawn!';
+
+            } catch (error) {
+                 statusElement.textContent = 'Error executing OpenCV code. Check console.';
+                 statusElement.className = 'error';
+                 console.error("Error executing OpenCV code: ", error); // This will catch further errors
+            }
+        }
+
+        // --- 5. Script Loading Error Handler ---
+        function onOpenCvScriptError(event) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Error loading opencv.js script from remote URL. Check network tab and CDN status.';
+            statusElement.className = 'error';
+            console.error("Error loading remote opencv.js script: ", event);
+        }
+
+    </script>
+
+    <!-- 6. Load OpenCV.js Asynchronously from the official docs URL -->
+    <!-- **IMPORTANT**: Use the ABSOLUTE URL to the hosted JS file -->
+    <script async src="https://docs.opencv.org/4.9.0/opencv.js"
+            onerror="onOpenCvScriptError(event)"></script>
 
 </body>
 </html>
