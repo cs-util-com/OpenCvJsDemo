@@ -1,109 +1,332 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Minimal OpenCV.js WASM (CDN)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Sharpness Detection (OpenCV.js + Tailwind)</title>
+    <!-- 1. Include Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: sans-serif; padding: 1em; }
-        #status { margin-bottom: 1em; font-weight: bold; color: #555; }
-        #canvasOutput { border: 1px solid black; }
-        .ready { color: green; }
-        .error { color: red; }
+        /* Optional: Custom styles if needed, or hide elements initially */
+        #canvasOutput, #imageSrc { max-width: 100%; height: auto; }
+        .drop-active { border-color: #2563eb; background-color: #eff6ff; } /* Example active dropzone style */
     </style>
 </head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen p-4">
 
-<body>
-    <h1>Minimal OpenCV.js WASM Example (Using Hosted Files)</h1>
-    <div id="status">Initializing OpenCV.js from docs.opencv.org... Please Wait.</div>
-    <p>A blue rectangle should appear below if OpenCV.js loaded and executed correctly from the remote URL.</p>
-    <canvas id="canvasOutput" width="320" height="240"></canvas>
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-2xl">
+        <h1 class="text-2xl font-bold text-center text-gray-700 mb-6">Image Sharpness Detector</h1>
+
+        <!-- 2. Drop Zone -->
+        <div id="dropZone" class="border-2 border-dashed border-gray-400 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition-colors mb-6">
+            <p id="dropZoneText" class="text-gray-500">Drag & Drop an image file here, or click to select</p>
+            <input type="file" id="fileInput" class="hidden" accept="image/*">
+        </div>
+
+        <!-- 3. Status Display -->
+        <div id="status" class="text-center text-gray-600 font-semibold mb-4 h-6">
+            <!-- Status messages will appear here -->
+        </div>
+
+        <!-- 4. Image and Canvas Display -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <h2 class="text-lg font-semibold text-gray-700 mb-2 text-center">Original Image</h2>
+                <img id="imageSrc" alt="Dropped Image" class="border rounded shadow-sm mx-auto hidden"/>
+                <p id="imagePlaceholder" class="text-center text-gray-400">Image will appear here</p>
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-700 mb-2 text-center">Processed (Grayscale)</h2>
+                <canvas id="canvasOutput" class="border rounded shadow-sm mx-auto hidden"></canvas>
+                 <p id="canvasPlaceholder" class="text-center text-gray-400">Processed image will appear here</p>
+            </div>
+        </div>
+
+         <!-- 5. Sharpness Result -->
+         <div id="sharpnessResult" class="mt-6 text-center text-xl font-bold text-blue-600 h-8">
+             <!-- Sharpness score will appear here -->
+         </div>
+    </div>
 
     <script>
-        // --- 1. OpenCV WASM Module Configuration ---
-        // Define the Module object *before* loading opencv.js
+        // --- DOM Element References ---
+        const dropZone = document.getElementById('dropZone');
+        const dropZoneText = document.getElementById('dropZoneText');
+        const fileInput = document.getElementById('fileInput');
+        const imageSrc = document.getElementById('imageSrc');
+        const canvasOutput = document.getElementById('canvasOutput');
+        const statusElement = document.getElementById('status');
+        const sharpnessResultElement = document.getElementById('sharpnessResult');
+        const imagePlaceholder = document.getElementById('imagePlaceholder');
+        const canvasPlaceholder = document.getElementById('canvasPlaceholder');
+
+        let isCvReady = false; // Flag to track OpenCV status
+
+        // --- OpenCV Configuration and Loading ---
         var Module = {
-            // **IMPORTANT**: Use the ABSOLUTE URL to the hosted WASM file
             wasmBinaryFile: 'https://docs.opencv.org/4.9.0/opencv_js.wasm',
-            // Use onRuntimeInitialized - standard Emscripten callback
             onRuntimeInitialized: function() { onOpenCvReady(); }
         };
 
-        // --- 2. OpenCV Ready Callback ---
-        // Function to run when the WASM module is loaded and ready
         async function onOpenCvReady() {
-            const statusElement = document.getElementById('status');
-            console.log('OpenCV runtime initialized from remote source.');
-
-            // Ensure cv is ready, potentially handling Promises
+            statusElement.textContent = 'OpenCV.js is ready.';
+            console.log('OpenCV runtime initialized.');
             try {
-                 if (typeof cv === 'undefined') {
-                    statusElement.textContent = 'Error: cv object is undefined after loading from remote source.';
-                    statusElement.className = 'error';
-                    console.error('Error: cv object is undefined.');
-                    return;
-                 }
-                 cv = (cv instanceof Promise) ? await cv : cv;
-                 console.log('cv object is ready:', cv);
-
-                 statusElement.textContent = 'OpenCV.js is ready (loaded from CDN).';
-                 statusElement.classList.add('ready');
-
+                if (typeof cv === 'undefined') throw new Error("cv is undefined");
+                cv = (cv instanceof Promise) ? await cv : cv;
+                console.log('cv object:', cv);
+                console.log("OpenCV Build Info:", cv.getBuildInformation());
+                isCvReady = true;
+                // If an image was loaded *before* OpenCV was ready, process it now
+                // Check imageSrc.complete which indicates if browser finished loading/decoding
+                 if (imageSrc.src && imageSrc.src !== '#' && imageSrc.complete) {
+                    console.log("OpenCV ready after image was loaded. Processing now.");
+                    processImage();
+                } else if (imageSrc.src && imageSrc.src !== '#') {
+                    console.log("OpenCV ready, but image element might still be loading. Waiting for imageSrc.onload.");
+                    // The imageSrc.onload handler will call processImage if needed
+                }
             } catch (error) {
-                statusElement.textContent = 'Error resolving cv object. Check console.';
-                statusElement.className = 'error';
+                isCvReady = false;
+                statusElement.textContent = 'Error initializing OpenCV. Check console.';
                 console.error("Error resolving cv object: ", error);
-                return; // Stop execution if cv isn't ready
-            }
-
-            // --- 3. Simple OpenCV Operation ---
-            try {
-                // Use getBuildInformation() instead of getVersionString()
-                console.log("OpenCV Build Information:", cv.getBuildInformation());
-
-                let canvas = document.getElementById('canvasOutput');
-
-                // Create an OpenCV Mat - USE CV_8UC4 as a CONSTANT
-                let mat = new cv.Mat(canvas.height, canvas.width, cv.CV_8UC4); // REMOVED ()
-
-                // Define points and color (Blue this time)
-                let point1 = new cv.Point(75, 75);
-                let point2 = new cv.Point(245, 165);
-                let color = new cv.Scalar(0, 0, 255, 255); // Blue (RGBA)
-                let thickness = -1; // Fill the rectangle
-
-                // Draw rectangle on the Mat
-                cv.rectangle(mat, point1, point2, color, thickness);
-
-                // Display the Mat on the canvas
-                cv.imshow('canvasOutput', mat);
-
-                // --- 4. Clean up OpenCV objects ---
-                mat.delete(); // Don't forget cleanup!
-
-                console.log('Successfully drew rectangle using remotely loaded OpenCV.');
-                statusElement.textContent = 'OpenCV.js ready (CDN). Rectangle drawn!';
-
-            } catch (error) {
-                 statusElement.textContent = 'Error executing OpenCV code. Check console.';
-                 statusElement.className = 'error';
-                 console.error("Error executing OpenCV code: ", error); // This will catch further errors
             }
         }
 
-        // --- 5. Script Loading Error Handler ---
         function onOpenCvScriptError(event) {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = 'Error loading opencv.js script from remote URL. Check network tab and CDN status.';
-            statusElement.className = 'error';
+            isCvReady = false;
+            statusElement.textContent = 'Error loading opencv.js script. Check network.';
             console.error("Error loading remote opencv.js script: ", event);
+        }
+
+        // --- Drag & Drop Logic ---
+        dropZone.addEventListener('dragover', (event) => {
+            event.preventDefault(); // Prevent default behavior (opening file)
+            dropZone.classList.add('drop-active');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drop-active');
+        });
+
+        // *** UPDATED drop listener ***
+        dropZone.addEventListener('drop', (event) => {
+            console.log("dropZone 'drop' event fired."); // Log for drop
+            event.preventDefault();
+            dropZone.classList.remove('drop-active');
+            clearPreviousResults(); // Clear first for drop
+
+            const files = event.dataTransfer.files;
+            if (files && files.length > 0) { // Check files exist
+                 console.log("File dropped:", files[0].name);
+                 handleFile(files[0]);
+            } else {
+                console.log("Drop event fired, but no files found in dataTransfer.");
+            }
+        });
+
+        // *** UPDATED click listener ***
+        dropZone.addEventListener('click', () => {
+            console.log("dropZone 'click' event fired. Triggering fileInput.click()."); // Log for click
+            fileInput.click(); // Programmatically click the hidden file input
+        });
+
+        // *** UPDATED change listener ***
+        fileInput.addEventListener('change', (event) => {
+             console.log("fileInput 'change' event fired."); // Log for change
+
+             if (event.target.files && event.target.files.length > 0) {
+                // --- FIX: Extract the file object FIRST ---
+                const selectedFile = event.target.files[0];
+                console.log("File selected via dialog:", selectedFile.name);
+
+                // --- Now call clearPreviousResults (which resets fileInput.value) ---
+                clearPreviousResults();
+
+                // --- Handle the file using the *captured* object ---
+                handleFile(selectedFile);
+            } else {
+                console.log("fileInput 'change' event fired, but no files selected or event.target.files is empty.");
+            }
+        });
+
+
+        // --- File Handling (Corrected imageSrc.onload timing) ---
+        function handleFile(file) {
+            // *** NEW DETAILED LOGGING ***
+            console.log("handleFile: Received argument 'file':", file);
+            console.log("handleFile: typeof file:", typeof file);
+            if (file) {
+                console.log("handleFile: file.name:", file.name);
+                console.log("handleFile: file.type:", file.type);
+                console.log("handleFile: file.type startsWith('image/'):", file.type ? file.type.startsWith('image/') : 'N/A (type missing)');
+            }
+             // *** END NEW LOGGING ***
+
+            // Modified condition to also check if file.type exists before calling startsWith
+            if (file && file.type && file.type.startsWith('image/')) {
+                console.log("handleFile: Passed image check. Proceeding with FileReader."); // Log success
+                const reader = new FileReader();
+
+                // Define the image handlers *first*
+                const imageLoadHandler = () => {
+                    console.log("imageSrc.onload fired!");
+                    if (isCvReady) {
+                        processImage();
+                    } else {
+                         statusElement.textContent = 'Image loaded. Waiting for OpenCV to initialize...';
+                         console.log("Image loaded, but OpenCV not ready yet.");
+                    }
+                };
+
+                const imageErrorHandler = () => {
+                    statusElement.textContent = 'Error rendering image source. Check console.';
+                    console.error("imageSrc.onerror fired. Check image file or Data URL generation.");
+                    imagePlaceholder.classList.remove('hidden');
+                    imageSrc.classList.add('hidden');
+                };
+
+                // Attach handlers *before* setting src
+                imageSrc.onload = imageLoadHandler;
+                imageSrc.onerror = imageErrorHandler;
+
+                reader.onload = function(e) {
+                    console.log("FileReader onload fired. Setting imageSrc.src...");
+                    statusElement.textContent = 'Image data read. Loading image element...';
+                    imagePlaceholder.classList.add('hidden');
+                    imageSrc.src = e.target.result;
+                    imageSrc.classList.remove('hidden');
+                }
+
+                reader.onerror = function(e) {
+                    statusElement.textContent = 'Error reading file. Check console.';
+                    console.error("FileReader error:", e);
+                }
+
+                reader.readAsDataURL(file);
+
+            } else {
+                // *** More specific logging in the 'else' block ***
+                console.log("handleFile: Failed image check (entering else block).");
+                if (!file) {
+                     console.warn("Reason for failure: 'file' argument is falsey.");
+                } else if (!file.type) {
+                     console.warn("Reason for failure: 'file' object exists, but 'file.type' is missing or empty.", file);
+                } else {
+                     console.warn(`Reason for failure: 'file.type' is "${file.type}", which does not start with "image/".`, file);
+                }
+                statusElement.textContent = 'Please drop/select an image file.';
+                // Keep original log for context, but the detailed logs above are more useful
+                // console.warn("Original log -> Non-image file selected:", file);
+            }
+        }
+
+        // --- Image Processing (OpenCV) ---
+        function processImage() {
+            // Added check for image completeness again here for robustness
+            if (!isCvReady || !imageSrc.src || imageSrc.src === '#' || !imageSrc.complete) {
+                 // `imageSrc.complete` checks if the browser has finished loading/decoding the image
+                console.warn("ProcessImage called but prerequisites not met (cv ready / image fully loaded).");
+                console.warn(`Debug: isCvReady=${isCvReady}, imageSrc.src=${imageSrc.src}, imageSrc.complete=${imageSrc.complete}`);
+                // Don't set status here, imageSrc.onload might still be waiting for OpenCV
+                // statusElement.textContent = 'Cannot process: OpenCV not ready or image not fully loaded.';
+                return;
+            }
+
+            statusElement.textContent = 'Processing image...';
+            console.log("Starting OpenCV processing...");
+            sharpnessResultElement.textContent = ''; // Clear previous result
+            canvasPlaceholder.classList.add('hidden');
+            canvasOutput.classList.remove('hidden');
+
+
+            let src = null;
+            let gray = null;
+            let laplacian = null;
+            let mean = null;
+            let stddev = null;
+
+            try {
+                // 1. Read image from <img> tag into OpenCV Mat
+                src = cv.imread(imageSrc); // Reads the image data from the <img> element
+                if (src.empty()) {
+                    throw new Error("cv.imread returned an empty Mat. Check image source or if it's loaded.");
+                }
+                console.log("Image read into Mat. Size:", src.size().width, "x", src.size().height);
+
+
+                // 2. Convert to Grayscale
+                gray = new cv.Mat();
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY); // Assume RGBA from browser, convert to Gray
+                console.log("Converted to Grayscale.");
+
+                // 3. Calculate Laplacian
+                laplacian = new cv.Mat();
+                 // Use CV_64F for Laplacian to avoid issues with negative values / precision for variance calculation
+                cv.Laplacian(gray, laplacian, cv.CV_64F, 1, 1, 0, cv.BORDER_DEFAULT);
+                console.log("Laplacian calculated.");
+
+                // 4. Calculate Variance of Laplacian (Sharpness)
+                mean = new cv.Mat(); // Mat to store mean value
+                stddev = new cv.Mat(); // Mat to store standard deviation value
+                cv.meanStdDev(laplacian, mean, stddev); // Calculates mean and std dev of all pixels in laplacian Mat
+                console.log("Mean and StdDev calculated.");
+
+                // Sharpness = variance = stddev^2
+                // Access the standard deviation value (it's in a 1x1 Mat, data type is double - 64F)
+                let sharpness = stddev.data64F[0] * stddev.data64F[0];
+                console.log("Sharpness (Variance of Laplacian):", sharpness);
+
+                // 5. Display Results
+                sharpnessResultElement.textContent = `Sharpness Score: ${sharpness.toFixed(2)}`;
+                statusElement.textContent = 'Processing complete.';
+
+                // Display grayscale image on canvas
+                cv.imshow('canvasOutput', gray); // Show the grayscale image used for calculation
+                console.log("Displayed grayscale image on canvas.");
+
+
+            } catch (error) {
+                statusElement.textContent = 'Error during OpenCV processing. Check console.';
+                console.error("OpenCV Error: ", error);
+                 sharpnessResultElement.textContent = 'Processing Failed';
+
+            } finally {
+                // 6. IMPORTANT: Clean up ALL OpenCV Mats to prevent memory leaks
+                if (src) src.delete();
+                if (gray) gray.delete();
+                if (laplacian) laplacian.delete();
+                if (mean) mean.delete();
+                if (stddev) stddev.delete();
+                console.log("Cleaned up OpenCV Mats.");
+            }
+        }
+
+        // --- Utility ---
+        function clearPreviousResults() {
+             console.log("Clearing previous results..."); // Log clearing action
+             imageSrc.onload = null; // Remove previous handlers to prevent memory leaks/stale calls
+             imageSrc.onerror = null;
+             imageSrc.src = '#'; // Use '#' or '' which are invalid/empty src values
+             imageSrc.classList.add('hidden');
+             imagePlaceholder.classList.remove('hidden');
+             // Clear canvas safely
+             const ctx = canvasOutput.getContext('2d');
+             if (ctx) {
+                 ctx.clearRect(0, 0, canvasOutput.width, canvasOutput.height);
+             }
+             canvasOutput.classList.add('hidden');
+             canvasPlaceholder.classList.remove('hidden');
+             statusElement.textContent = '';
+             sharpnessResultElement.textContent = '';
+             // Reset file input value allows selecting the same file again if needed
+             fileInput.value = '';
         }
 
     </script>
 
-    <!-- 6. Load OpenCV.js Asynchronously from the official docs URL -->
-    <!-- **IMPORTANT**: Use the ABSOLUTE URL to the hosted JS file -->
-    <script async src="https://docs.opencv.org/4.9.0/opencv.js"
-            onerror="onOpenCvScriptError(event)"></script>
+    <!-- Load OpenCV.js (Must be AFTER Module definition) -->
+    <script async src="https://docs.opencv.org/4.9.0/opencv.js" onerror="onOpenCvScriptError(event)"></script>
 
 </body>
 </html>
