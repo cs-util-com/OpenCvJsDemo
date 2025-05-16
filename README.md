@@ -1,32 +1,43 @@
-# TemplateJs
-TemplateJs is a minimal single-page web app template designed for quick deployment. 
-It follows an AI-assisted iterative development process:
+# Image Sharpness Detector
 
-- User stories and requirements drive feature development.
-- Each iteration is a single commit for easy review.
-- AI-assisted coding minimizes manual intervention.
-- The focus is on defining clear requirements rather than manual coding.
+A web application that uses OpenCV.js to analyze and measure the sharpness of uploaded images.
 
-This approach enables rapid prototyping and structured iteration.
+## Demo
 
-## Using the Template
-1. Fork this repository and open the fork via GitHub CodeSpaces
-2. Go to your repos Settings -> Pages and there in the "Branch" section select the main branch to be auto-deployed by GitHub for you
-3. If your fork is 
-   <br> github.com/**YourUserName**/**YourFork** 
-   <br> then your WebApp should now be live at 
-   <br> **YourUserName**.github.io/**YourFork** 
-4. Install VsCode plugins in CodeSpaces
-   - "**Live Server**" to render the resulting page including live updates while you edit etc
-   - "**GitHub Copilot**" to do smaller iterations inside of CodeSpaces
-5. Edit the index.html and regularly commit and push in CodeSpaces to "release" your latest app version 
+Try the application online: [https://cs-util-com.github.io/OpenCvJsDemo/](https://cs-util-com.github.io/OpenCvJsDemo/)
 
-## AI Iteration Workflow
-1. Copy `index.html` into ChatGPT.
-2. Modify or extend the requirements listed at the top
-3. Test the changes via Right-Click on the index.html -> "Open with Live Server"
-4. Clean up modifications done by the AI via the "Source Control" -> "Changes" UX of VsCode (in GitHub CodeSpaces)
-5. Commit
+## Features
 
-## Disclaimer
-TemplateJs is provided as-is. It is a general-purpose template and does not include domain-specific functionality. Use and modify as needed.
+- Drag-and-drop interface for easy image uploading
+- Real-time sharpness analysis using Laplacian variance method
+- Side-by-side display of original and processed grayscale images
+- Numerical sharpness score calculation
+- Responsive design built with Tailwind CSS
+
+## How It Works
+
+1. The application loads OpenCV.js from the official CDN
+2. Users upload images via drag-and-drop or file selection
+3. The uploaded image is processed using the following algorithm:
+   - Convert the image to grayscale
+   - Apply Laplacian operator to detect edges
+   - Calculate the variance of the Laplacian (a measure of sharpness)
+   - Display the sharpness score (higher values indicate sharper images)
+
+## Technical Details
+
+- Built with pure JavaScript and HTML
+- Uses OpenCV.js 4.9.0 for image processing
+- Styled with Tailwind CSS
+- No server-side processing (all computation happens in the browser)
+
+## Browser Compatibility
+
+Works in modern browsers that support:
+- WebAssembly (for OpenCV.js)
+- HTML5 File API
+- ES6+ JavaScript
+
+## License
+
+See the LICENSE file for details.
